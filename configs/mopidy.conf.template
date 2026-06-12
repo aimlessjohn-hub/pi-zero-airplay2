@@ -1,0 +1,41 @@
+# Mopidy-Konfiguration – Subsonic (Nextcloud) + Internetradio
+#
+# ⚠️ Vor Nutzung: Ersetze USERNAME und PASSWORD mit deinen Nextcloud-Daten!
+#    Subsonic-App-Passwort in Nextcloud unter Einstellungen → Sicherheit erstellen.
+#
+# Siehe: /usr/share/doc/mopidy/examples/mopidy.conf
+
+[core]
+data_dir = /var/lib/mopidy
+max_tracklist_length = 10000
+metadata_blacklist = *
+
+[audio]
+output = alsasink device=dmix
+
+[proxy]
+enabled = false
+
+[subidy]
+enabled = true
+# URL mit deinen Credentials:
+# url = https://example.com/index.php/apps/music/subsonic/rest?u=USERNAME&p=PASSWORD&v=1.16.1&c=subidy
+url = https://aimless.hopto.org/index.php/apps/music/subsonic/rest?u=USERNAME&p=PASSWORD&v=1.16.1&c=subidy
+legacy_auth = true
+
+[m3u]
+enabled = true
+playlists_dir = /var/lib/mopidy/m3u
+
+[mpd]
+port = 6600
+hostname = ::1
+
+[http]
+enabled = true
+hostname = 127.0.0.1
+port = 6680
+
+[stream]
+enabled = true
+timeout = 10000
