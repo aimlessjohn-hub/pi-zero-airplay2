@@ -38,8 +38,11 @@ jobs:
             libsystemd-dev \
             libplist-utils \
             libplist-dev \
+            libsodium-dev \
             libtool \
-            pkg-config
+            pkg-config \
+            uuid-dev \
+            xxd
 
       - name: Build nqptp
         run: |
@@ -49,6 +52,16 @@ jobs:
           ./configure --with-systemd-startup
           make -j$(nproc)
           sudo make install DESTDIR=${{ github.workspace }}/build/nqptp
+
+      - name: Build ALAC decoder (Apple Lossless)
+        run: |
+          git clone --depth 1 https://github.com/mikebrady/alac.git /tmp/alac
+          cd /tmp/alac
+          autoreconf -fi
+          ./configure
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
 
       - name: Build Shairport-Sync 5.0.4
         run: |
