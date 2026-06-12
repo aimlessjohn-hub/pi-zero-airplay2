@@ -35,6 +35,7 @@ jobs:
             libsndfile1-dev \
             libsoxr-dev \
             libssl-dev \
+            libsystemd-dev \
             libtool \
             pkg-config
 
