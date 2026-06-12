@@ -36,6 +36,7 @@ jobs:
             libsoxr-dev \
             libssl-dev \
             libsystemd-dev \
+            libplist-utils \
             libtool \
             pkg-config
 
