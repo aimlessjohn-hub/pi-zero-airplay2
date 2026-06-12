@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04-arm  # Native ARM64, kein QEMU!
+    permissions:
+      contents: write
 
     env:
       DEBIAN_FRONTEND: noninteractive
@@ -94,8 +96,10 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: |
             airplay2-arm64/*.tar.gz
           generate_release_notes: true
+          fail_on_unmatched_files: false
