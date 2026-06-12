@@ -9,15 +9,34 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04-arm  # Native ARM64 — kein QEMU!
-    
+    runs-on: ubuntu-24.04-arm  # Native ARM64, kein QEMU!
+
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Build-Dependencies
+      - name: Update apt cache
+        run: sudo apt-get update
+
+      - name: Install build dependencies
         run: |
-          sudo apt update -qq
-          sudo apt install -y -qq             autoconf automake avahi-daemon build-essential git             libavahi-client-dev libconfig-dev libdaemon-dev             libglib2.0-dev libpopt-dev libsndfile1-dev             libsoxr-dev libssl-dev libtool pkg-config xmltoman
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            build-essential \
+            git \
+            libavahi-client-dev \
+            libconfig-dev \
+            libdaemon-dev \
+            libglib2.0-dev \
+            libpopt-dev \
+            libsndfile1-dev \
+            libsoxr-dev \
+            libssl-dev \
+            libtool \
+            pkg-config
 
       - name: Build nqptp
         run: |
@@ -26,7 +45,7 @@ jobs:
           autoreconf -fi
           ./configure --with-systemd-startup
           make -j$(nproc)
-          make install DESTDIR=${{ github.workspace }}/build/nqptp
+          sudo make install DESTDIR=${{ github.workspace }}/build/nqptp
 
       - name: Build Shairport-Sync 5.0.4
         run: |
@@ -35,7 +54,7 @@ jobs:
           autoreconf -fi
           ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr --with-systemd
           make -j$(nproc)
-          make install DESTDIR=${{ github.workspace }}/build/shairport-sync
+          sudo make install DESTDIR=${{ github.workspace }}/build/shairport-sync
 
       - name: Package artifacts
         run: |
