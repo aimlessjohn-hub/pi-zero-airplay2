@@ -12,6 +12,7 @@
 # Getestet auf:
 #   - Raspberry Pi OS Lite (64-bit, Bookworm)
 #   - Debian 13 Trixie (arm64)
+#   - GitHub Actions (ubuntu-24.04-arm)
 # ============================================================
 set -euo pipefail
 
@@ -19,14 +20,13 @@ SRC_DIR="/usr/local/src"
 NQPTP_REPO="https://github.com/mikebrady/nqptp.git"
 SHAIRPORT_REPO="https://github.com/mikebrady/shairport-sync.git"
 SHAIRPORT_TAG="5.0.4"
+ALAC_REPO="https://github.com/mikebrady/alac.git"
 
 log() { echo "[+] $*"; }
 err() { echo "[!] $*" >&2; exit 1; }
 
-# Root-Check
 [[ $EUID -eq 0 ]] || err "Dieses Skript muss als root ausgeführt werden (sudo)."
 
-# Arch-Check
 ARCH=$(uname -m)
 case "$ARCH" in
   aarch64|armv7l) log "Architektur: $ARCH ✓" ;;
@@ -43,35 +43,57 @@ log "Build-Dependencies installieren..."
 apt install -y \
   autoconf \
   automake \
-  avahi-daemon \
   build-essential \
+  cmake \
   git \
   libavahi-client-dev \
+  libavcodec-dev \
+  libavformat-dev \
+  libavutil-dev \
   libconfig-dev \
   libdaemon-dev \
+  libgcrypt-dev \
   libglib2.0-dev \
   libmosquitto-dev \
+  libplist-dev \
   libpopt-dev \
-  libsdl2-dev \
   libsndfile1-dev \
+  libsodium-dev \
   libsoxr-dev \
   libssl-dev \
+  libsystemd-dev \
   libtool \
   pkg-config \
-  pulseaudio \
+  uuid-dev \
   xmltoman \
   xxd
 
 log "Runtime-Dependencies installieren..."
 apt install -y \
   libavahi-compat-libdnssd1 \
+  libplist-utils \
   libpulse0 \
   libsoxr0 \
   libssl3 \
   mosquitto
 
 # ============================================================
-# 2. nqptp bauen
+# 2. ALAC (Apple Lossless Audio Codec) bauen
+# ============================================================
+log "ALAC klonen..."
+cd "$SRC_DIR"
+[[ -d alac ]] && rm -rf alac
+git clone --depth 1 "$ALAC_REPO"
+cd alac
+
+log "ALAC kompilieren..."
+cmake . -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+make install
+ldconfig
+
+# ============================================================
+# 3. nqptp bauen
 # ============================================================
 log "nqptp klonen..."
 cd "$SRC_DIR"
@@ -86,7 +108,7 @@ make -j$(nproc)
 make install
 
 # ============================================================
-# 3. Shairport-Sync bauen (AirPlay 2)
+# 4. Shairport-Sync bauen (AirPlay 2)
 # ============================================================
 log "Shairport-Sync $SHAIRPORT_TAG klonen..."
 cd "$SRC_DIR"
@@ -101,16 +123,13 @@ autoreconf -fi
   --with-ssl=openssl \
   --with-avahi \
   --with-soxr \
-  --with-systemd \
   --with-metadata \
-  --with-mpris \
-  --with-pipe \
-  --with-pulseaudio
+  --with-pipe
 make -j$(nproc)
 make install
 
 # ============================================================
-# 4. systemd-Dienste aktivieren
+# 5. systemd-Dienste aktivieren
 # ============================================================
 log "nqptp-Dienst aktivieren..."
 systemctl enable nqptp
@@ -119,7 +138,7 @@ log "Shairport-Sync-Dienst aktivieren..."
 systemctl enable shairport-sync
 
 # ============================================================
-# 5. ALSA dmix vorbereiten (für parallelen DAC-Zugriff)
+# 6. ALSA dmix vorbereiten
 # ============================================================
 if [[ ! -f /etc/asound.conf ]]; then
   log "ALSA dmix-Konfiguration schreiben..."
@@ -147,7 +166,7 @@ EASOUND
 fi
 
 # ============================================================
-# 6. Fertig
+# 7. Fertig
 # ============================================================
 log "=== Build abgeschlossen ==="
 log "nqptp:   $(nqptp --version 2>/dev/null || echo 'unbekannt')"
