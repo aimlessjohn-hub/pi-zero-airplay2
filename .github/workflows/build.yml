@@ -25,7 +25,7 @@ jobs:
             libconfig-dev libdaemon-dev libgcrypt-dev libglib2.0-dev \
             libmosquitto-dev libplist-dev libplist-utils libpopt-dev \
             libsndfile1-dev libsodium-dev libsoxr-dev libssl-dev \
-            libsystemd-dev libtool pkg-config uuid-dev
+            libsystemd-dev libtool pkg-config uuid-dev xmltoman
 
       - name: Build nqptp
         run: |
@@ -40,7 +40,8 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/mikebrady/alac.git /tmp/alac
           cd /tmp/alac
-          cmake . -DCMAKE_BUILD_TYPE=Release
+          autoreconf -fi
+          ./configure
           make -j$(nproc)
           sudo make install
           sudo ldconfig

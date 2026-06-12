@@ -92,7 +92,8 @@ git clone --depth 1 "$ALAC_REPO"
 cd alac
 
 log "ALAC kompilieren..."
-cmake . -DCMAKE_BUILD_TYPE=Release
+autoreconf -fi
+./configure
 make -j$(nproc)
 make install
 ldconfig
