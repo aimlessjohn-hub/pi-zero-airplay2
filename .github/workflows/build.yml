@@ -16,49 +16,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build in Debian container
+      - name: Install build dependencies
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            -e DEBIAN_FRONTEND=noninteractive \
-            arm64v8/debian:bookworm \
-            bash -c "
-              set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake build-essential git \
+            libavahi-client-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libconfig-dev libdaemon-dev libgcrypt-dev libglib2.0-dev \
+            libplist-dev libplist-utils libpopt-dev libsndfile1-dev \
+            libsodium-dev libsoxr-dev libssl-dev libsystemd-dev \
+            libtool pkg-config uuid-dev xxd
 
-              apt-get update -qq
-              apt-get install -y -qq \
-                autoconf automake build-essential git \
-                libavahi-client-dev libavcodec-dev libavformat-dev libavutil-dev \
-                libconfig-dev libdaemon-dev libgcrypt-dev libglib2.0-dev \
-                libplist-dev libplist-utils libpopt-dev libsndfile1-dev \
-                libsodium-dev libsoxr-dev libssl-dev libsystemd-dev \
-                libtool pkg-config uuid-dev xxd
+      - name: Build nqptp
+        run: |
+          git clone --depth 1 https://github.com/mikebrady/nqptp.git /tmp/nqptp
+          cd /tmp/nqptp
+          autoreconf -fi
+          ./configure --with-systemd-startup
+          make -j$(nproc)
+          sudo make install DESTDIR=${{ github.workspace }}/build/nqptp
 
-              # nqptp
-              git clone --depth 1 https://github.com/mikebrady/nqptp.git /tmp/nqptp
-              cd /tmp/nqptp
-              autoreconf -fi
-              ./configure --with-systemd-startup
-              make -j\\\$(nproc)
-              make install DESTDIR=/workspace/build/nqptp
+      - name: Build ALAC
+        run: |
+          git clone --depth 1 https://github.com/mikebrady/alac.git /tmp/alac
+          cd /tmp/alac
+          autoreconf -fi
+          ./configure
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
 
-              # ALAC
-              git clone --depth 1 https://github.com/mikebrady/alac.git /tmp/alac
-              cd /tmp/alac
-              autoreconf -fi
-              ./configure
-              make -j\\\$(nproc)
-              make install
-              ldconfig
-
-              # Shairport-Sync 5.0.4
-              git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
-              cd /tmp/shairport-sync
-              autoreconf -fi
-              ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr
-              make -j\\\$(nproc)
-              make install DESTDIR=/workspace/build/shairport-sync
-            "
+      - name: Build Shairport-Sync 5.0.4
+        run: |
+          git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
+          cd /tmp/shairport-sync
+          autoreconf -fi
+          ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr
+          make -j$(nproc)
+          sudo make install DESTDIR=${{ github.workspace }}/build/shairport-sync
 
       - name: Package artifacts
         run: |
