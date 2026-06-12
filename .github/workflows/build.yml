@@ -24,26 +24,28 @@ jobs:
         run: |
           docker run --platform linux/${{ matrix.arch }} \
             -v ${{ github.workspace }}:/workspace \
-            arm64v8/debian:bookworm-slim \
+            -e DEBIAN_FRONTEND=noninteractive \
+            arm64v8/debian:bookworm \
             bash -c "
-              apt update && apt install -y \
+              apt update -qq && apt install -y -qq \
                 autoconf automake avahi-daemon build-essential git \
                 libavahi-client-dev libconfig-dev libdaemon-dev \
                 libglib2.0-dev libpopt-dev libsndfile1-dev \
-                libsoxr-dev libssl-dev libtool pkg-config xmltoman;
-              
+                libsoxr-dev libssl-dev libtool pkg-config xmltoman \
+                libpulse-dev libmosquitto-dev 2>&1;
+
               # nqptp
               git clone --depth 1 https://github.com/mikebrady/nqptp.git /tmp/nqptp
               cd /tmp/nqptp
               autoreconf -fi && ./configure --with-systemd-startup && make -j\$(nproc) && make install DESTDIR=/workspace/build/nqptp;
-              
+
               # Shairport-Sync 5.0.4
               git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
               cd /tmp/shairport-sync
               autoreconf -fi
-              ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr --with-systemd
+              ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr --with-systemd --with-pulseaudio
               make -j\$(nproc) && make install DESTDIR=/workspace/build/shairport-sync;
-            "
+            " 2>&1
 
       - name: Package artifacts
         run: |
