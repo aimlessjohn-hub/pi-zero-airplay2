@@ -21,6 +21,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake build-essential cmake git \
+            libasound2-dev \
             libavahi-client-dev libavcodec-dev libavformat-dev libavutil-dev \
             libconfig-dev libdaemon-dev libgcrypt-dev libglib2.0-dev \
             libmosquitto-dev libplist-dev libplist-utils libpopt-dev \
@@ -57,10 +58,7 @@ jobs:
             --with-ssl=openssl \
             --with-avahi \
             --with-soxr \
-            --with-alsa \
-            --with-metadata \
-            --with-dbus-interface \
-            --with-mpris-interface
+            --with-alsa
           make -j$(nproc)
           sudo make install DESTDIR=${{ github.workspace }}/build/shairport-sync
 
