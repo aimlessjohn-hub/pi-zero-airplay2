@@ -28,17 +28,20 @@ jobs:
             build-essential \
             git \
             libavahi-client-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
             libconfig-dev \
             libdaemon-dev \
+            libgcrypt-dev \
             libglib2.0-dev \
+            libplist-dev \
+            libplist-utils \
             libpopt-dev \
             libsndfile1-dev \
+            libsodium-dev \
             libsoxr-dev \
             libssl-dev \
-            libsystemd-dev \
-            libplist-utils \
-            libplist-dev \
-            libsodium-dev \
             libtool \
             pkg-config \
             uuid-dev \
@@ -68,7 +71,7 @@ jobs:
           git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
           cd /tmp/shairport-sync
           autoreconf -fi
-          ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr --with-systemd
+          ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr
           make -j$(nproc)
           sudo make install DESTDIR=${{ github.workspace }}/build/shairport-sync
 
