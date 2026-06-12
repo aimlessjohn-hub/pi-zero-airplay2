@@ -37,6 +37,7 @@ jobs:
             libssl-dev \
             libsystemd-dev \
             libplist-utils \
+            libplist-dev \
             libtool \
             pkg-config
 
