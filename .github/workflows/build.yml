@@ -9,60 +9,50 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [arm64]
+    runs-on: ubuntu-24.04-arm  # Native ARM64 — kein QEMU!
     
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build nqptp + Shairport-Sync
+      - name: Install Build-Dependencies
         run: |
-          docker run --platform linux/${{ matrix.arch }} \
-            -v ${{ github.workspace }}:/workspace \
-            -e DEBIAN_FRONTEND=noninteractive \
-            arm64v8/debian:bookworm \
-            bash -c "
-              apt update -qq && apt install -y -qq \
-                autoconf automake avahi-daemon build-essential git \
-                libavahi-client-dev libconfig-dev libdaemon-dev \
-                libglib2.0-dev libpopt-dev libsndfile1-dev \
-                libsoxr-dev libssl-dev libtool pkg-config xmltoman \
-                libpulse-dev libmosquitto-dev 2>&1;
+          sudo apt update -qq
+          sudo apt install -y -qq             autoconf automake avahi-daemon build-essential git             libavahi-client-dev libconfig-dev libdaemon-dev             libglib2.0-dev libpopt-dev libsndfile1-dev             libsoxr-dev libssl-dev libtool pkg-config xmltoman
 
-              # nqptp
-              git clone --depth 1 https://github.com/mikebrady/nqptp.git /tmp/nqptp
-              cd /tmp/nqptp
-              autoreconf -fi && ./configure --with-systemd-startup && make -j\$(nproc) && make install DESTDIR=/workspace/build/nqptp;
+      - name: Build nqptp
+        run: |
+          git clone --depth 1 https://github.com/mikebrady/nqptp.git /tmp/nqptp
+          cd /tmp/nqptp
+          autoreconf -fi
+          ./configure --with-systemd-startup
+          make -j$(nproc)
+          make install DESTDIR=${{ github.workspace }}/build/nqptp
 
-              # Shairport-Sync 5.0.4
-              git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
-              cd /tmp/shairport-sync
-              autoreconf -fi
-              ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr --with-systemd --with-pulseaudio
-              make -j\$(nproc) && make install DESTDIR=/workspace/build/shairport-sync;
-            " 2>&1
+      - name: Build Shairport-Sync 5.0.4
+        run: |
+          git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
+          cd /tmp/shairport-sync
+          autoreconf -fi
+          ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr --with-systemd
+          make -j$(nproc)
+          make install DESTDIR=${{ github.workspace }}/build/shairport-sync
 
       - name: Package artifacts
         run: |
           mkdir -p dist
-          tar -czf dist/airplay2-arm64.tar.gz -C build . 2>/dev/null || true
+          tar -czf dist/airplay2-arm64.tar.gz -C build .
           echo "Build complete"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: airplay2-${{ matrix.arch }}
+          name: airplay2-arm64
           path: dist/*.tar.gz
 
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/download-artifact@v4
       - name: Create Release
