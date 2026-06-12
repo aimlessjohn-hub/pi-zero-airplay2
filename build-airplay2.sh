@@ -12,7 +12,12 @@
 # Getestet auf:
 #   - Raspberry Pi OS Lite (64-bit, Bookworm)
 #   - Debian 13 Trixie (arm64)
-#   - GitHub Actions (ubuntu-24.04-arm)
+#   - Pi Zero 2 W (416 MB RAM)
+#
+# Bekannte Issues und Workarounds:
+#   - Apple USB-C DAC: SPS_FORMAT-Crash → disable_standby_mode = "never"
+#   - nqptp Port 319: CAP_NET_BIND_SERVICE erforderlich
+#   - apt-mark hold shairport-sync verhindert Überschreiben durch apt
 # ============================================================
 set -euo pipefail
 
@@ -119,26 +124,61 @@ cd shairport-sync
 log "Shairport-Sync mit AirPlay-2-Support kompilieren..."
 autoreconf -fi
 ./configure \
+  --sysconfdir=/etc \
   --with-airplay-2 \
   --with-ssl=openssl \
   --with-avahi \
   --with-soxr \
+  --with-alsa \
   --with-metadata \
-  --with-pipe
+  --with-pipe \
+  --with-dbus-interface \
+  --with-mpris-interface
 make -j$(nproc)
 make install
 
+# apt-mark hold: verhindert Überschreiben durch apt upgrade/install
+apt-mark hold shairport-sync 2>/dev/null && log "shairport-sync via apt-mark held" || true
+
 # ============================================================
-# 5. systemd-Dienste aktivieren
+# 5. nqptp Service mit Capabilities für Port 319
 # ============================================================
-log "nqptp-Dienst aktivieren..."
+log "nqptp-Service mit CAP_NET_BIND_SERVICE installieren..."
+cat > /etc/systemd/system/nqptp.service << 'ENQPTP'
+[Unit]
+Description=Network Quality of Service Precision Time Protocol (nqptp)
+Documentation=man:nqptp(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/nqptp
+Restart=on-failure
+RestartSec=5
+AmbientCapabilities=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+CapabilityBoundingSet=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
+ENQPTP
+
+systemctl daemon-reload
 systemctl enable nqptp
 
-log "Shairport-Sync-Dienst aktivieren..."
+# ============================================================
+# 6. Shairport-Sync Service
+# ============================================================
+log "Shairport-Sync-Service installieren..."
 systemctl enable shairport-sync
 
 # ============================================================
-# 6. ALSA dmix vorbereiten
+# 7. ALSA dmix vorbereiten
 # ============================================================
 if [[ ! -f /etc/asound.conf ]]; then
   log "ALSA dmix-Konfiguration schreiben..."
@@ -166,11 +206,37 @@ EASOUND
 fi
 
 # ============================================================
-# 7. Fertig
+# 8. Hardware-Volume sichern (Apple USB-C DAC 100%)
+# ============================================================
+log "Hardware-Volume auf 100% setzen und sichern..."
+amixer -c 0 sset Headphone 120 2>/dev/null || true
+alsactl store 2>/dev/null || true
+
+# systemd-Service für Boot-Sicherung
+cat > /etc/systemd/system/alsa-headphone-volume.service << 'EVOL'
+[Unit]
+Description=Setze Apple USB-C DAC Headphone Lautstärke auf 100% (0dB)
+After=alsa-restore.service sound.target
+Requires=alsa-restore.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/amixer -c 0 sset Headphone 120
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EVOL
+
+systemctl daemon-reload
+systemctl enable alsa-headphone-volume.service
+
+# ============================================================
+# 9. Fertig
 # ============================================================
 log "=== Build abgeschlossen ==="
 log "nqptp:   $(nqptp --version 2>/dev/null || echo 'unbekannt')"
-log "Shairport-Sync: $(shairport-sync -V 2>/dev/null || echo 'unbekannt')"
+log "Shairport-Sync: $(shairport-sync -V 2>/dev/null | head -1 || echo 'unbekannt')"
 log ""
 log "Jetzt Config anpassen:"
 log "  sudo cp configs/shairport-sync.conf /etc/"
@@ -178,3 +244,8 @@ log "  sudo systemctl restart nqptp"
 log "  sudo systemctl restart shairport-sync"
 log ""
 log "AirPlay 2 sollte unter 'PiZero-AirPlay2' (Port 7000) sichtbar sein."
+log ""
+log "⚠ Wichtige Workarounds in der Config:"
+log "  - disable_standby_mode = \"never\" (SPS_FORMAT-Crash mit Apple DAC)"
+log "  - output_format = \"S16_LE\" + output_rate = 48000"
+log "  - mdns = \"avahi\" (sonst kein mDNS-Announce)"

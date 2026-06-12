@@ -1,0 +1,12 @@
+[Unit]
+Description=Setze Apple USB-C DAC Headphone Lautstärke auf 100% (0dB)
+After=alsa-restore.service sound.target
+Requires=alsa-restore.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/amixer -c 0 sset Headphone 120
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

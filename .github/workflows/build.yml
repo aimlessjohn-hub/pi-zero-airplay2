@@ -20,12 +20,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            autoconf automake build-essential git \
+            autoconf automake build-essential cmake git \
             libavahi-client-dev libavcodec-dev libavformat-dev libavutil-dev \
             libconfig-dev libdaemon-dev libgcrypt-dev libglib2.0-dev \
-            libplist-dev libplist-utils libpopt-dev libsndfile1-dev \
-            libsodium-dev libsoxr-dev libssl-dev libsystemd-dev \
-            libtool pkg-config uuid-dev xxd
+            libmosquitto-dev libplist-dev libplist-utils libpopt-dev \
+            libsndfile1-dev libsodium-dev libsoxr-dev libssl-dev \
+            libsystemd-dev libtool pkg-config uuid-dev
 
       - name: Build nqptp
         run: |
@@ -40,8 +40,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/mikebrady/alac.git /tmp/alac
           cd /tmp/alac
-          autoreconf -fi
-          ./configure
+          cmake . -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
           sudo make install
           sudo ldconfig
@@ -51,7 +50,16 @@ jobs:
           git clone --depth 1 --branch 5.0.4 https://github.com/mikebrady/shairport-sync.git /tmp/shairport-sync
           cd /tmp/shairport-sync
           autoreconf -fi
-          ./configure --with-airplay-2 --with-ssl=openssl --with-avahi --with-soxr
+          ./configure \
+            --sysconfdir=/etc \
+            --with-airplay-2 \
+            --with-ssl=openssl \
+            --with-avahi \
+            --with-soxr \
+            --with-alsa \
+            --with-metadata \
+            --with-dbus-interface \
+            --with-mpris-interface
           make -j$(nproc)
           sudo make install DESTDIR=${{ github.workspace }}/build/shairport-sync
 

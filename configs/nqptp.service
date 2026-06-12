@@ -9,8 +9,9 @@ Type=simple
 ExecStart=/usr/local/bin/nqptp
 Restart=on-failure
 RestartSec=5
-AmbientCapabilities=CAP_SYS_TIME
-CapabilityBoundingSet=CAP_SYS_TIME
+# Port 319 (PTP) benötigt CAP_NET_BIND_SERVICE + CAP_NET_RAW
+AmbientCapabilities=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+CapabilityBoundingSet=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
 ProtectSystem=full
 ProtectHome=yes
 PrivateTmp=yes

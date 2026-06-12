@@ -225,13 +225,105 @@ sudo systemctl enable --now nqptp shairport-sync
 ## Build Details 🇩🇪 🇬🇧
 
 | Component | Version | Source | Build Flag |
-|---|---|---|---|
+|---|---|---|---|---|
 | nqptp | 1.2.1-99 (HEAD) | [mikebrady/nqptp](https://github.com/mikebrady/nqptp) | `--with-systemd-startup` |
-| Shairport-Sync | 5.0.4 | [mikebrady/shairport-sync](https://github.com/mikebrady/shairport-sync) | `--with-airplay-2 --with-ssl=openssl` |
+| Shairport-Sync | 5.0.4 | [mikebrady/shairport-sync](https://github.com/mikebrady/shairport-sync) | `--with-airplay-2 --with-ssl=openssl --with-alsa --with-avahi --sysconfdir=/etc` |
 | ALAC (Apple Lossless) | HEAD | [mikebrady/alac](https://github.com/mikebrady/alac) | cmake |
 | DAC | Apple USB-C Adapter (Cirrus Logic) | fixed 48 kHz | Hardware mixer "Headphone" |
 
 All builds run on **native ARM64** via GitHub Actions (`ubuntu-24.04-arm`). No QEMU, no cross-compilation.
+
+---
+
+## Known Issues & Workarounds 🇩🇪
+
+### `SPS_FORMAT_* with index 42` – Silence-Puffer-Crash
+
+Der Apple USB-C DAC (S24_3LE / S16_LE) verursacht einen Crash im Silence-Puffer von Shairport-Sync 5.0.4.
+
+**Symptom:** Shairport-Sync startet, crasht aber sofort mit `fatal error: Unexpected SPS_FORMAT_* with index 42 while outputting silence`.
+
+**Workaround** (in `shairport-sync.conf`):
+```conf
+general = {
+    disable_standby_mode = "never";   // deaktiviert den Silence-Puffer
+};
+
+alsa = {
+    output_format = "S16_LE";         // erzwungenes Format
+    output_rate = 48000;              // erzwungene Rate
+};
+```
+
+### nqptp startet nicht – Port 319 Permission
+
+**Symptom:** `fatal error: nqptp does not have permission to access port 319`
+
+**Fix** (in `nqptp.service`):
+```ini
+AmbientCapabilities=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+CapabilityBoundingSet=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+```
+
+### apt überschreibt Shairport-Sync Binary nach Upgrade
+
+**Symptom:** Nach `apt upgrade` startet plötzlich AirPlay 1 statt AirPlay 2.
+
+**Fix:**
+```bash
+sudo apt-mark hold shairport-sync
+```
+
+### Hardware-Volume nach Reboot zurückgesetzt
+
+**Symptom:** AirPlay ist nach Neustart leiser.
+
+**Fix:** Der systemd-Service `alsa-headphone-volume.service` setzt den Hardware-Mixer nach jedem Boot auf 100% (0 dB).
+
+## Known Issues & Workarounds 🇬🇧
+
+### `SPS_FORMAT_* with index 42` – Silence buffer crash
+
+The Apple USB-C DAC (S24_3LE / S16_LE) crashes Shairport-Sync's silence synthesizer.
+
+**Symptom:** Shairport-Sync starts but immediately crashes with `fatal error: Unexpected SPS_FORMAT_* with index 42 while outputting silence`.
+
+**Workaround** (in `shairport-sync.conf`):
+```conf
+general = {
+    disable_standby_mode = "never";   // disables the silence buffer
+};
+
+alsa = {
+    output_format = "S16_LE";         // forced format
+    output_rate = 48000;              // forced rate
+};
+```
+
+### nqptp won't start – Port 319 permission
+
+**Symptom:** `fatal error: nqptp does not have permission to access port 319`
+
+**Fix** (in `nqptp.service`):
+```ini
+AmbientCapabilities=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+CapabilityBoundingSet=CAP_SYS_TIME CAP_NET_BIND_SERVICE CAP_NET_RAW
+```
+
+### apt overwrites Shairport-Sync binary after upgrade
+
+**Symptom:** After `apt upgrade`, AirPlay 1 runs instead of AirPlay 2.
+
+**Fix:**
+```bash
+sudo apt-mark hold shairport-sync
+```
+
+### Hardware volume reset after reboot
+
+**Symptom:** AirPlay is quieter after a reboot.
+
+**Fix:** The systemd service `alsa-headphone-volume.service` restores the hardware mixer to 100% (0 dB) on every boot.
 
 ---
 
