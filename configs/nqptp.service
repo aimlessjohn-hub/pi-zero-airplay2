@@ -1,0 +1,21 @@
+[Unit]
+Description=Network Quality of Service Precision Time Protocol (nqptp)
+Documentation=man:nqptp(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/nqptp
+Restart=on-failure
+RestartSec=5
+AmbientCapabilities=CAP_SYS_TIME
+CapabilityBoundingSet=CAP_SYS_TIME
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
